@@ -10,7 +10,7 @@ upgrade_version="DeepFlow-V6.6.9-37"
 # 脚本名称（用于帮助信息）
 script_name="deepflow_patch_upgrade.sh"
 # 路径配置
-image_dir="."                          # 镜像文件存放目录
+image_dir="." # 镜像文件存放目录
 patch_image_list="patch_image_tag_list.txt" # 镜像标签列表文件
 values_yaml="/usr/local/deepflow/templates/values.yaml" # Helm values 文件路径
 values_custom="/usr/local/deepflow/templates/values-custom.yaml" # 自定义 values 文件
