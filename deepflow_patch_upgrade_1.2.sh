@@ -4,9 +4,9 @@ set -euo pipefail
 
 # ------------------------------ 用户可配置变量 ------------------------------
 # 容器命令，支持 docker 或 nerdctl -nk8s.io
-container_cmd="nerdctl -nk8s.io"
+container_cmd="docker"
 # 升级后的版本号，按需修改
-upgrade_version="DeepFlow-V6.4.9-106"
+upgrade_version="DeepFlow-V6.6.9-37"
 # 脚本名称（用于帮助信息）
 script_name="deepflow_patch_upgrade.sh"
 # 路径配置
@@ -14,11 +14,14 @@ image_dir="."                          # 镜像文件存放目录
 patch_image_list="patch_image_tag_list.txt" # 镜像标签列表文件
 values_yaml="/usr/local/deepflow/templates/values.yaml" # Helm values 文件路径
 values_custom="/usr/local/deepflow/templates/values-custom.yaml" # 自定义 values 文件
-source_registry="hub.deepflow.yunshan.net/dev" # 原始镜像仓库
-target_registry="sealos.hub:5000"     # 目标镜像仓库
+values_trash="/usr/local/deepflow/templates/.trash" # 自定义 values 文件
+source_registry="hub.deepflow.yunshan.net/public" # 原始镜像仓库
+target_registry="hubmgt-uat.paic.com.cn/deepflow"     # 目标镜像仓库
 # 定义需要升级的组件列表
 components=(
-  openebs
+  #openebs
+  #df-analyze
+  #df-web-ai
   redis
   rabbitmq
   mysql
@@ -41,12 +44,10 @@ components=(
   report
   statistics
   pcap
-  dedicated-agent
   grafana
   check
-  df-web-ai
-  df-analyze
 )
+
 # ------------------------------ 全局状态跟踪 ------------------------------
 current_step=0                        # 当前操作步骤（用于回滚跟踪）
 # ------------------------------ 函数定义 ------------------------------
@@ -159,7 +160,7 @@ update_image_tags() {
 # 更新自定义版本号
 update_custom_version() {
   echo -e "\n\033[1;34m[步骤 5/$current_step] 更新版本号...\033[0m"
-  sed -i "s/^deepflowVersion: .*/deepflowVersion: ${upgrade_version}/" "$values_custom" || exit 1
+  sed -i "s/deepflowVersion: .*/deepflowVersion: ${upgrade_version}/" "$values_custom" || exit 1
   echo -e "\033[1;32m✓ 版本号更新为 $upgrade_version\033[0m"
   sleep 2  # 添加2秒停顿
 }
@@ -191,17 +192,35 @@ rollback_changes() {
   # 查找最新的备份文件
   local latest_values=$(ls -t "${values_yaml}".bak.* 2>/dev/null | head -1)
   local latest_custom=$(ls -t "${values_custom}".bak.* 2>/dev/null | head -1)
+   
+  echo -e "\033[31m"${latest_values}" -> "${values_yaml}"\033[0m"
+  echo -e "\033[31m"${latest_custom}" -> "${values_custom}"\033[0m"
+  echo ""
+  echo -e "\033[31m"【注意】即将替换以上配置完成配置回滚，请再次确认！"\033[0m"
+  read -p "输入【yes】 or 【no】，并按回车键: " yesorno
+  
+
+  [[ "x${yesorno}" == x"y" ]]  ||  [[ "x${yesorno}" == x"yes" ]]  || exit 1
+  
+  
+  echo -e "\n\033[1;33m[回滚] 开始恢复配置文件...\033[0m"
+  [ -d "${values_trash}" ] || mkdir "${values_trash}"
 
   if [ -n "$latest_values" ]; then
-    cp -v "$latest_values" "$values_yaml" || exit 1
-  fi
-  if [ -n "$latest_custom" ]; then
-    cp -v "$latest_custom" "$values_custom" || exit 1
+    mv -v "$values_yaml" "${values_trash}" && mv -v "$latest_values" "$values_yaml" || exit 1
+  else
+    echo -e "\033[31m没有找到可用的备份 values.yaml\033[0m"  
+    exit 1
   fi
 
-  echo -e "\n\033[1;33m[回滚] 重新应用旧配置...\033[0m"
-  upgrade_components  # 使用旧配置重新部署
-  sleep 2  # 添加2秒停顿
+  if [ -n "$latest_custom" ]; then
+    mv -v "$values_custom" "${values_trash}" && mv -v "$latest_custom" "$values_custom" || exit 1
+  else
+    echo -e "\033[31m没有找到可用的备份 values-custom.yaml\033[0m"  
+    exit 1
+  fi
+
+  echo -e "\n\033[1;33m[回滚] 重新使用旧配置更新...\033[0m"
 }
 
 # ------------------------------ 主逻辑 ------------------------------
@@ -231,10 +250,10 @@ main() {
       upgrade_components
       ;;
     -r|--rollback)
-      rollback_changes
+      rollback_changes    # 回滚配置
+      upgrade_components  # 使用旧配置重新部署
       ;;
     *)
-      echo -e "\033[1;31m错误: 无效参数\033[0m"
       usage
       exit 1
       ;;

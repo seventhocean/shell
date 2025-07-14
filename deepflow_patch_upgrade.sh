@@ -150,7 +150,7 @@ update_image_tags() {
     tag=$(echo "$tag" | tr -d '\r' | xargs)
     
     echo "更新: $image → $tag"
-    sed -i "s|\(${image}:\).*|\1${tag}|" "$values_yaml" || exit 1
+    sed -i "s|\(${image}: \).*|\1${tag}|" "$values_yaml" || exit 1
   done < "$patch_image_list"
   echo -e "\033[1;32m✓ 标签更新完成\033[0m"
   sleep 2  # 添加2秒停顿
