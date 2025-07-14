@@ -9,7 +9,7 @@ NC='\033[0m' # 恢复默认颜色
 
 # 使用的容器命令，支持 docker 或 nerdctl -nk8s.io
 #container_cmd="docker"
-container_cmd="nerdctl -nk8s.io"
+container_cmd="nerdctl"
 # 登录Docker仓库
 echo "35lRrgBcLhF" | $container_cmd login --username=acrpush@yunshan --password-stdin hub.deepflow.yunshan.net
 # 定义镜像仓库地址
@@ -54,6 +54,7 @@ while IFS= read -r line || [[ -n "$line" ]]; do
     if ! $container_cmd pull "$full_image_name"; then
         echo -e "${RED}错误: 拉取镜像失败: $full_image_name${NC}"
         exit 1
+        #sleep 2  # 添加2秒停顿
     fi
 
     save_file="$save_dir/${clean_image_name}_${image_tag}.tar"
