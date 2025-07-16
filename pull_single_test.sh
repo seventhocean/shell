@@ -7,10 +7,9 @@ GREEN='\033[0;32m'
 RED='\033[0;31m'
 NC='\033[0m' # 恢复默认颜色
 
-# 使用的容器命令，支持 docker 或 nerdctl -nk8s.io
+# 使用的容器命令，默认使用docker
 #container_cmd="docker"
 container_cmd="nerdctl"
-
 # 定义镜像仓库地址
 repo="hub.deepflow.yunshan.net/dev/"
 # 定义镜像列表文件
@@ -20,7 +19,6 @@ save_dir="$(pwd)"
 
 # 登录Docker仓库
 echo "35lRrgBcLhF" | $container_cmd login --username=acrpush@yunshan --password-stdin hub.deepflow.yunshan.net
-
 
 # 处理单个镜像的函数
 pull_and_save_single() {
@@ -44,17 +42,9 @@ pull_and_save_single() {
     fi
 }
 
-
-
 # 处理从文件读取镜像列表
 pull_from_file() {
     echo "镜像文件将保存到当前目录: $save_dir"
-
-    # 检查镜像列表文件
-    if [ ! -f "$patch_image_list" ]; then
-        echo -e "${RED}错误: 镜像列表文件 $patch_image_list 不存在${NC}"
-        exit 1
-    fi
 
     if [ ! -f "$patch_image_list" ]; then
         echo -e "${RED}错误: 镜像列表文件 $patch_image_list 不存在${NC}"
@@ -82,22 +72,8 @@ pull_from_file() {
         clean_image_name=$(echo "$image_name" | sed 's/_tag$//')
         full_image_name="${repo}${clean_image_name}:${image_tag}"
         
-
-        echo -e "${GREEN}正在拉取镜像: $full_image_name${NC}"
-        if ! $container_cmd pull "$full_image_name"; then
-            echo -e "${RED}错误: 拉取镜像失败: $full_image_name${NC}"
-            exit 1
-            #sleep 2  # 添加2秒停顿
-        fi
-
-        save_file="$save_dir/${clean_image_name}_${image_tag}.tar"
-        echo -e "${GREEN}正在保存镜像到: $save_file${NC}"
-        if ! $container_cmd save -o "$save_file" "$full_image_name"; then
-            echo -e "${RED}错误: 保存镜像失败: $full_image_name${NC}"
-            exit 1
-        fi
+        pull_and_save_single "$full_image_name"
     done < "$patch_image_list"
-
 }
 
 # 主逻辑
@@ -115,4 +91,4 @@ else
     done
 fi
 
-echo -e "${GREEN}"所有镜像处理完成！"${NC}"
+echo -e "${GREEN}所有镜像处理完成！${NC}"
