@@ -1,3 +1,1 @@
 querier-js_tag: v6.6.18868
-pcap_tag: v6.6.220
-deepflow-app_tag: v6.6.235
