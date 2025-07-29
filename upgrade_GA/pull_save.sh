@@ -3,17 +3,17 @@
 set -euo pipefail
 # ------------------------------ 配置 ------------------------------
 # 定义颜色变量
-GREEN='\033[0;32m'
+GREEN='\033[1;32m'
 RED='\033[0;31m'
-YELLOW='\033[0;33m'
+YELLOW='\033[1;33m'
 WHITE='\033[1;37m'
 CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m' # 恢复默认颜色
 
 # 使用的容器命令，支持 docker 或 nerdctl -nk8s.io
-#container_cmd="docker"
-container_cmd="nerdctl"
+container_cmd="docker"
+#container_cmd="nerdctl"
 
 # 定义镜像仓库地址
 repo="hub.deepflow.yunshan.net/dev/"
@@ -36,16 +36,16 @@ show_help() {
     echo -e "  ${BOLD}1.${CYAN} 从 ${YELLOW}patch_image_tag_list.txt${CYAN} 批量拉取镜像:"
     echo -e "     ${NC}$0${NC}\n"
     
-    echo -e "  ${BOLD}2.${CYAN} 拉取单个镜像 (${CYAN}自动添加默认仓库前缀:${GREEN}hub.deepflow.yunshan.net/dev/${NC}):"
+    echo -e "  ${BOLD}2.${CYAN} 拉取单个镜像 (${CYAN}自动添加默认仓库前缀:${GREEN}hub.deepflow.yunshan.net/dev/${CYAN}):"
     echo -e "     ${NC}$0 deepflow-server:v6.6.5550${NC}\n"
     
-    echo -e "  ${BOLD}3.${CYAN} 拉取多个镜像 (${CYAN}自动添加默认仓库前缀:${GREEN}hub.deepflow.yunshan.net/dev/${NC}):"
+    echo -e "  ${BOLD}3.${CYAN} 拉取多个镜像 (${CYAN}自动添加默认仓库前缀:${GREEN}hub.deepflow.yunshan.net/dev/${CYAN}):"
     echo -e "     ${NC}$0 deepflow-server:v6.6.5550 pcap:v6.6.220${NC}\n"
     
     echo -e "  ${BOLD}4.${CYAN} 拉取完整镜像地址:"
     echo -e "     ${NC}$0 hub.deepflow.yunshan.net/dev/deepflow-server:feature-scp-66${NC}\n"
     
-    echo -e "  ${BOLD}5.${CYAN} 使用 ${BOLD}nerdctl${NC} 拉取镜像:"
+    echo -e "  ${BOLD}5.${CYAN} 使用 ${GREEN}nerdctl ${CYAN}拉取镜像:"
     echo -e "     ${NC}$0 --cmd nerdctl deepflow-server:v6.6.5550${NC}\n"
     exit 0
 }

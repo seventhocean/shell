@@ -231,7 +231,7 @@ main() {
       push_images
       ;;
     -v|--version)
-      echo -e "\033[1;32mVersion 1.1.2 for DeepFlow v6.6.9\033[0m"
+      echo -e "\033[1;33mVersion 1.1.3 for DeepFlow v6.6.9\033[0m"
       exit 0
       ;;
     -h|--help)
