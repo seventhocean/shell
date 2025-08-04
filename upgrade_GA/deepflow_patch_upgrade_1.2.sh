@@ -65,28 +65,21 @@ usage() {
     echo -e "  \033[1;35m-h, --help\033[0m     显示脚本帮助信息"
     echo -e "  \033[1;35m-p, --push\033[0m     仅导入并推送镜像到仓库"
     echo -e "  \033[1;35m-u, --upgrade\033[0m  执行完整升级流程（备份、替换、升级）"
+    echo -e "  \033[1;35m-c, --check\033[0m    检查升级后的版本是否一致"
     echo -e "  \033[1;35m-r, --rollback\033[0m 回滚到升级前的状态"
     
     echo -e "\n\033[1;33m🔧 更新前准备工作:\033[0m"
     echo -e "  • 修改脚本头部变量 \033[1;36mupgrade_version=\"DeepFlow-V6.4.9-xx\"\033[0m 为实际版本号"
     echo -e "  • 确保脚本和 \033[1;36mpatch_image_tag_list.txt 以及镜像文件包\033[0m 在同一目录"
-
-    
-    echo -e "\n\033[1;33m📝 脚本执行步骤说明:\033[0m"
-    echo -e "  \033[1;35m1️⃣  推送镜像\033[0m: 将新镜像推送到目标仓库"
-    echo -e "  \033[1;35m2️⃣  备份配置\033[0m: 备份 values.yaml 文件"
-    echo -e "  \033[1;35m3️⃣  更新标签\033[0m: 替换 values.yaml 中的镜像标签"
-    echo -e "  \033[1;35m4️⃣  版本更新\033[0m: 更新 values-custom.yaml 中的版本号"
-    echo -e "  \033[1;35m5️⃣  组件升级\033[0m: 升级所有有变动的组件"
     
     echo -e "\n\033[1;33m⚙️  可配置变量 (修改脚本头部):\033[0m"
-    echo -e "  \033[1;36mcontainer_cmd\033[0m   容器命令 (默认: ${container_cmd})"
-    echo -e "  \033[1;36mimage_dir\033[0m       镜像目录 (默认: ${image_dir})"
-    echo -e "  \033[1;36msource_registry\033[0m 源仓库地址 (默认: ${source_registry})"
-    echo -e "  \033[1;36mtarget_registry\033[0m 目标仓库 (默认: ${target_registry})"
+    echo -e "  \033[1;36mcontainer_cmd\033[0m    容器命令 (默认: ${container_cmd})"
+    echo -e "  \033[1;36mimage_dir\033[0m        镜像目录 (默认: ${image_dir})"
+    echo -e "  \033[1;36msource_registry\033[0m  源仓库地址 (默认: ${source_registry})"
+    echo -e "  \033[1;36mtarget_registry\033[0m  目标仓库 (默认: ${target_registry})"
     echo -e "  \033[1;36mpatch_image_list\033[0m 镜像列表文件 (默认: ${patch_image_list})"
-    echo -e "  \033[1;36mvalues_yaml\033[0m     Values文件路径 (默认: ${values_yaml})"
-    echo -e "  \033[1;36mvalues_custom\033[0m   自定义Values路径 (默认: ${values_custom})"
+    echo -e "  \033[1;36mvalues_yaml\033[0m      Values文件路径 (默认: ${values_yaml})"
+    echo -e "  \033[1;36mvalues_custom\033[0m    自定义Values路径 (默认: ${values_custom})"
     
     echo -e "\n\033[1;32m💡 提示: 执行前请仔细阅读上述说明并确认配置正确！\033[0m"
 }
@@ -186,6 +179,57 @@ upgrade_components() {
   sleep 2
 }
 
+
+check_image() {
+  echo -e "\n\033[1;34m[检查] 检查升级镜像版本...\033[0m"
+  controller_version=()
+
+  # 读取kubectl输出并清理格式
+  while IFS= read -r line; do
+      cleaned_line=$(echo "$line" | sed -e 's/[[:space:]]*$//')
+      controller_version+=("$cleaned_line")
+  done < <(kubectl get pod -n deepflow -o jsonpath='{range.items[*]}{.metadata.name}: {range.spec.containers[*]}{.image}{"\n"}{end}{end}' | awk -F'[/:]' '{printf "%s:%s\n", $(NF-1), $NF}' | sort -u)
+
+  # 读取文件并对比版本
+  while IFS= read -r line; do
+      [[ -z "$line" || "$line" =~ ^# ]] && continue
+
+      # 处理格式并清理特殊字符
+      processed_line=$(echo "$line" | sed -E -e 's/_tag:[[:space:]]+/:/' -e 's/\r//g' -e 's/[[:space:]]*$//')
+
+      # 提取镜像名和版本
+      image_name=$(echo "$processed_line" | cut -d: -f1)
+      file_version=$(echo "$processed_line" | cut -d: -f2)
+
+      # 格式验证
+      if [[ ! "$processed_line" =~ ^[a-zA-Z0-9_-]+:[a-zA-Z0-9._-]+$ ]]; then
+          echo "无效格式: $line（跳过）"
+          continue
+      fi
+
+      # 查找并对比版本
+      found=0
+      for version in "${controller_version[@]}"; do
+          if echo "$version" | grep -Eq "^${image_name}([:-]|$)"; then
+              found=1
+              # 按指定格式输出，区分一致/不一致
+              if [ "$version" = "$processed_line" ]; then
+                  echo -e "\033[32m【Frue】 \033[0m 预期版本：$processed_line 当前版本：$version"
+              else
+                  echo -e "\033[31m【False】\033[0m 预期版本：$processed_line 当前版本：$version"
+              fi
+
+              break
+          fi
+      done
+
+      # 未找到对应镜像
+      if [ $found -eq 0 ]; then
+          echo -e "\033[31m【False】\033[0m 预期版本：$processed_line 当前版本：未找到"
+      fi
+  done < "patch_image_tag_list.txt"
+}
+
 # 回滚操作
 rollback_changes() {
   echo -e "\n\033[1;33m[回滚] 恢复配置文件...\033[0m"
@@ -231,7 +275,7 @@ main() {
       push_images
       ;;
     -v|--version)
-      echo -e "\033[1;33mVersion 1.1.3 for DeepFlow v6.6.9\033[0m"
+      echo -e "\033[1;33mVersion 1.1.4 for DeepFlow v6.6.9\033[0m"
       exit 0
       ;;
     -h|--help)
@@ -248,6 +292,9 @@ main() {
       update_image_tags
       update_custom_version
       upgrade_components
+      ;;
+    -c|--check)
+      check_image
       ;;
     -r|--rollback)
       rollback_changes    # 回滚配置
