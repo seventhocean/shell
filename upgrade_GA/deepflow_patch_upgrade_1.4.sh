@@ -181,7 +181,7 @@ upgrade_components() {
 
 
 check_image() {
-  echo -e "\n\033[1;34m[检查] 检查升级镜像版本...\033[0m"
+  echo -e "\n\033[1;34m[检查] 检查已升级镜像版本...\033[0m"
   controller_version=()
 
   # 读取kubectl输出并清理格式
@@ -201,9 +201,8 @@ check_image() {
       image_name=$(echo "$processed_line" | cut -d: -f1)
       file_version=$(echo "$processed_line" | cut -d: -f2)
 
-      # 格式验证
-      if [[ ! "$processed_line" =~ ^[a-zA-Z0-9_-]+:[a-zA-Z0-9._-]+$ ]]; then
-          echo "无效格式: $line（跳过）"
+      if [[ ! "$processed_line" =~ ^[A-Za-z0-9_-]+:[A-Za-z0-9._-]+$ ]]; then
+          echo -e "\033[33m【跳过】 \033[0m 请检查格式：$processed_line"
           continue
       fi
 
@@ -214,7 +213,7 @@ check_image() {
               found=1
               # 按指定格式输出，区分一致/不一致
               if [ "$version" = "$processed_line" ]; then
-                  echo -e "\033[32m【Frue】 \033[0m 预期版本：$processed_line 当前版本：$version"
+                  echo -e "\033[32m【True】 \033[0m 预期版本：$processed_line 当前版本：$version"
               else
                   echo -e "\033[31m【False】\033[0m 预期版本：$processed_line 当前版本：$version"
               fi
