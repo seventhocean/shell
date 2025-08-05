@@ -201,8 +201,9 @@ check_image() {
       image_name=$(echo "$processed_line" | cut -d: -f1)
       file_version=$(echo "$processed_line" | cut -d: -f2)
 
+					
       if [[ ! "$processed_line" =~ ^[A-Za-z0-9_-]+:[A-Za-z0-9._-]+$ ]]; then
-          echo -e "\033[33m【跳过】 \033[0m 请检查格式：$processed_line"
+          printf "\033[33m【Skip】 \033[0m 请检查格式：%-40s\n" "$processed_line"
           continue
       fi
 
@@ -211,11 +212,11 @@ check_image() {
       for version in "${controller_version[@]}"; do
           if echo "$version" | grep -Eq "^${image_name}([:-]|$)"; then
               found=1
-              # 按指定格式输出，区分一致/不一致
+              # 使用printf固定宽度，实现对齐显示
               if [ "$version" = "$processed_line" ]; then
-                  echo -e "\033[32m【True】 \033[0m 预期版本：$processed_line 当前版本：$version"
+                  printf "\033[32m【True】 \033[0m 预期版本：%-40s 当前版本：%s\n" "$processed_line" "$version"
               else
-                  echo -e "\033[31m【False】\033[0m 预期版本：$processed_line 当前版本：$version"
+                  printf "\033[31m【False】\033[0m 预期版本：%-40s 当前版本：%s\n" "$processed_line" "$version"
               fi
 
               break
@@ -224,7 +225,7 @@ check_image() {
 
       # 未找到对应镜像
       if [ $found -eq 0 ]; then
-          echo -e "\033[31m【False】\033[0m 预期版本：$processed_line 当前版本：未找到"
+          printf "\033[31m【False】\033[0m 预期版本：%-40s 当前版本：未找到\n" "$processed_line"
       fi
   done < "patch_image_tag_list.txt"
 }
