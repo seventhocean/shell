@@ -154,7 +154,7 @@ pull_from_file() {
             exit 1
         fi
     done < "$patch_image_list"
-hub\.deepflow\.yunshan\.net/
+#hub\.deepflow\.yunshan\.net/
 }
 
 # 主逻辑
