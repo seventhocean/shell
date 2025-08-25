@@ -1,0 +1,227 @@
+#!/usr/bin/env bash
+###############################################################
+# Function : DeepFlow 快速登录中间件工具                        #
+# Platform : All Linux Based Platform                         # 
+# Version  : 1.0                                              #  
+# Date     : 2024-07-24                                       #  
+# Author   : yongshun                                         #  
+# Contact  : yongshun@yunshan.net                             #  
+# Company  : YunShan                                          #  
+# 备注：                                                       #
+# 1. 仅支持在部署了 DeepFlow 的环境登陆 MySQL/Redis/ClickHouse   #
+#    数据库以及备份 MySQL                                       #
+###############################################################
+
+# 获取脚本传参
+DATABASE_Management_System=$1
+DATABASE=$2
+
+#***********************************************************
+#可自定义配置
+
+# 定义作用名称空间
+NAMESPACE=deepflow
+# 定义作用 kubectl 客户端
+KUBECTL=`which kubectl`
+
+# 如果使用外置数据库必须自定义以下配置
+EXTERNAL_MYSQL_USER=""
+EXTERNAL_MYSQL_HOST=""
+EXTERNAL_MYSQL_PORT=""
+EXTERNAL_MYSQL_PASSWORD=""
+EXTERNAL_MYSQL_DATABASES=(
+  deepflow
+)
+
+#**********************************************************
+
+if [ x"${KUBECTL}" == x"" ]; then
+  echo -e "\033[31m【Error】kubectl 客户端不存在; 请先检查当前机器是否安装 kubectl 且拥有 kubenertes 集群管理权限！！！\033[0m "
+  exit 0
+fi
+
+# 自建 MySQL 密码
+MYSQL_PSWD=`${KUBECTL} get cm -n ${NAMESPACE} deepflow -oyaml|grep -A10 "mysql:" | grep password |awk 'NR==1{print $2}'`
+# 自建 MySQL 用户名
+MYSQL_USER=`${KUBECTL} get cm -n ${NAMESPACE} deepflow -oyaml|grep -A10 "mysql:" | grep name |awk 'NR==1{print $2}'`
+# 自建 redis 密码
+REDIS_PSWD=`${KUBECTL} get cm -n ${NAMESPACE} deepflow -oyaml|grep -A10 "redis:" | grep password |awk 'NR==1{print $2}'`
+# 自建 ClickHouse 密码
+CK_PSWD=`${KUBECTL} get cm -n ${NAMESPACE} deepflow -oyaml|grep -A10 "clickhouse:" | grep password |awk 'NR==1{print $2}'`
+# 定义 mnt 服务相关信息
+MNTNCT_POD_NAME=`${KUBECTL} get pod -n ${NAMESPACE}|grep mntnct|awk 'NR==1{print $1}'`
+# 定义 redis 服务相关信息
+REDIS_POD_NAME=`${KUBECTL} get pod -n ${NAMESPACE}|grep redis|awk 'NR==1{print $1}'`
+# 定义 clickhouse 服务相关信息，包括 byconity
+CK_POD_NAME=(`${KUBECTL} get pod -n ${NAMESPACE}|grep "clickhouse\|byconity-server"|awk '{print $1}'`)
+# 定义 mysql 服务相关信息
+MYSQL_POD_NAME=`${KUBECTL} get pod -n ${NAMESPACE}|grep mysql|awk 'NR==1{print $1}'`
+MYSQL_DATABASES=(
+  deepflow
+  grafana
+  information_schema
+  mysql
+  performance_schema
+  sys 
+)
+
+# 使用方法
+function usage() {
+    echo  "【Usage】"
+    echo -e "\033[36m$0 [数据库类型] [数据库名|POD名]\033[0m"
+    echo
+    echo  "【Example】"
+    echo -e "备份 MySQL 的 deepflow 库: \033[36mdblogin backup\033[0m"
+    echo -e "登陆 MySQL 的 deepflow 库: \033[36mdblogin mysql deepflow\033[0m"
+    echo -e "登陆 deepflow01 数据节点上的 ClickHouse: \033[36mdblogin ck master-deepflow-clickhouse-0\033[0m"
+    echo
+    echo  "【Tips】"
+    echo -e "当前工具支持登陆的数据库类型: \033[36m[mysql|redis|clickhouse]\033[0m"
+    echo -e "MySQL 支持指定如下数据库登陆: \033[36m[${MYSQL_DATABASES[@]}]\033[0m"
+    echo -e "ClickHouse 支持指定如下 POD 名登陆: \033[36m[${CK_POD_NAME[@]}]\033[0m"
+    echo -e "目前默认仅支持备份 MySQL 的 deepflow 库和 grafana 库"
+}
+
+# 自建 mysql 登陆方法
+function mysql_pod_login_mysql() {
+  ${KUBECTL} exec -it  ${MYSQL_POD_NAME} -n ${NAMESPACE} -- /bin/bash -c "mysql -u"${MYSQL_USER}" -p"${MYSQL_PSWD}" "${DATABASE}""
+}
+
+# 外置 mysql 登陆方法
+function mnt_pod_login_external_mysql() {
+  ${KUBECTL} exec -it  ${MNTNCT_POD_NAME} -n ${NAMESPACE} -- /bin/bash -c "mysql -u"${EXTERNAL_MYSQL_USER}" -h"${EXTERNAL_MYSQL_HOST}" -P"${EXTERNAL_MYSQL_PORT}" -p"${EXTERNAL_MYSQL_PASSWORD}" "${DATABASE}""
+}
+
+# redis 登陆方法
+function redis_pod_login_redis() {
+  ${KUBECTL} exec -it  ${REDIS_POD_NAME} -n ${NAMESPACE} -- /bin/bash -c "redis-cli -a "${REDIS_PSWD}""
+}
+
+# clickhouse 登陆方法
+function ck_pod_login_ck() {
+  ${KUBECTL} exec -it  ${CK_POD_NAME} -n ${NAMESPACE} -- /bin/bash -c "clickhouse-client --password "${CK_PSWD}""
+}
+
+# 备份自建 mysql 方法
+function mnt_pod_backup_mysql() {
+  echo -e "\033[36m**********开始备份自建MySQL「deepflow」**********\033[0m"
+  echo -e "\033[36m开始时间: $(date "+%Y-%m-%d %H:%M:%S")\033[0m"
+  ${KUBECTL} exec -it  ${MNTNCT_POD_NAME} -n ${NAMESPACE} -- /bin/bash -c "mysqldump -hmysql -uroot -psecurity421 -P30130 deepflow --hex-blob > /usr/local/deepflow/patch/deepflow_backup_$(date +%Y%m%d).sql"
+  if [ $? == 0 ]; then
+    echo -e "\033[36mdeepflow database 备份完成\033[0m"
+    echo -e "\033[36m结束时间: $(date "+%Y-%m-%d %H:%M:%S")\033[0m"
+  else
+    echo -e "\033[31m【Error】deepflow database 备份失败, 请重新执行备份 ！！！\033[0m"
+  fi
+  echo
+  echo -e "\033[36m**********开始备份自建MySQL「grafana」**********\033[0m"
+  echo -e "\033[36m开始时间: $(date "+%Y-%m-%d %H:%M:%S")\033[0m"
+  ${KUBECTL} exec -it  ${MNTNCT_POD_NAME} -n ${NAMESPACE} -- /bin/bash -c "mysqldump -hmysql -uroot -psecurity421 -P30130 grafana --hex-blob > /usr/local/deepflow/patch/grafana_backup_$(date +%Y%m%d).sql"
+  if [ $? == 0 ]; then
+    echo -e "\033[36mgrafana database备份完成\033[0m"
+    echo -e "\033[36m结束时间: $(date "+%Y-%m-%d %H:%M:%S")\033[0m"
+  else
+    echo -e "\033[31m【Error】备份失败, 请重新执行备份 ！！！\033[0m"
+  fi
+  echo
+  echo -e "\033[36m备份文件位置: \033[0m"
+  du -sh  /usr/local/deepflow/patch/*_backup_$(date +%Y%m%d).sql
+}
+
+# 备份外置 mysql 方法
+function mnt_pod_backup_external_mysql() {
+  for db in ${EXTERNAL_MYSQL_DATABASES[@]}; do
+    echo -e "\033[36m**********开始备份外置MySQL「$db」********** \033[0m"
+    echo -e "\033[36m开始时间: $(date "+%Y-%m-%d %H:%M:%S")\033[0m"
+    echo
+    ${KUBECTL} exec -it  ${MNTNCT_POD_NAME} -n ${NAMESPACE} -- /bin/bash -c "mysqldump -u"${EXTERNAL_MYSQL_USER}" -h"${EXTERNAL_MYSQL_HOST}" -P"${EXTERNAL_MYSQL_PORT}" -p"${EXTERNAL_MYSQL_PASSWORD}" "${db}" --hex-blob > /usr/local/deepflow/patch/external_${db}_backup_$(date +%Y%m%d).sql"
+    if [ $? == 0 ]; then
+      echo -e "\033[36m$db database备份完成\033[0m"
+      echo -e "\033[36m结束时间: $(date "+%Y-%m-%d %H:%M:%S")\033[0m"
+    else
+      echo -e "\033[31m【Error】备份失败, 请重新执行备份 ！！！\033[0m"
+    fi
+  done
+  echo
+  echo -e "\033[36m备份文件位置: \033[0m"
+  du -sh  /usr/local/deepflow/patch/external_*_backup_$(date +%Y%m%d).sql
+}
+
+# 判断传参, 登陆数据库
+## 登录mysql
+if [ x"${DATABASE_Management_System}" == x"mysql" ]; then
+  if [ x"${EXTERNAL_MYSQL_HOST}" != x"" -a x"${EXTERNAL_MYSQL_PASSWORD}" != x"" ]; then
+     if [ x"${DATABASE}" == x"" ] || echo "${EXTERNAL_MYSQL_DATABASES[@]}" |grep -wq "${DATABASE}" ; then
+       echo -e "\033[36m正在登陆外置数据库【"${DATABASE}"】:\033[0m"
+       mnt_pod_login_external_mysql
+     else 
+       echo -e "\033[31m【Error】登录的数据库「${DATABASE}」在外置数据库配置不存在, 请重新输入 ！！！\033[0m"
+       echo && usage 
+     fi
+     exit 0
+  fi
+  if [ x"${MYSQL_POD_NAME}" == x"" ]; then
+    echo -e "\033[31m【Error】没有获取到 MySQL 相关名称的 Pod ！！！\033[0m"
+    exit 0
+  fi
+  if [ x"${DATABASE}" == x"" ] || echo "${MYSQL_DATABASES[@]}" |grep -wq "${DATABASE}" ; then
+    echo -e "\033[36m正在登陆自建数据库【"${DATABASE}"】:\033[0m"
+    mysql_pod_login_mysql
+  else 
+    echo -e "\033[31m【Error】登录的数据库「${DATABASE}」不存在, 请重新输入 ！！！\033[0m"
+    echo && usage
+  fi
+  exit 0
+## 登录redis
+elif [ x"${DATABASE_Management_System}" == x"redis" ]; then
+  if [ x"${REDIS_POD_NAME}" == x"" ]; then
+    echo -e "\033[31m【Error】没有获取到 Redis 相关名称的 pod ！！！\033[0m "
+    exit 0 
+  fi
+  echo -e "\033[36m正在登陆 REDIS:\033[0m"
+  redis_pod_login_redis && exit 0
+## 登录ck
+elif [ x"${DATABASE_Management_System}" == x"ck" ]; then
+  if [ "${#CK_POD_NAME[@]}" -eq 0 ]; then
+    echo -e "\033[31m【Error】没有获取到 clickouse 相关名称的 pod ！！！\033[0m "
+    exit 0
+  elif [ "${#CK_POD_NAME[@]}" -eq 1 ]; then
+    echo -e "\033[36m当前环境仅存在一个 clickouse 副本「${CK_POD_NAME}」; 正在登陆中\033[0m"
+    ck_pod_login_ck && exit 0
+  else
+    if [ x"${DATABASE}" == x"" ]; then
+      echo -e "\033[31m【Error】登录命令输入错误 ！！！\033[0m"
+      echo && usage && exit 0
+    elif echo "${CK_POD_NAME[@]}" |grep -wq "${DATABASE}" ; then
+      CK=($(printf "%s\n" "${CK_POD_NAME[@]}" |grep -w "${DATABASE}"))
+      if [ ${#CK[@]} == 1 ]; then
+        CK_POD_NAME="${CK}"
+        echo -e "\033[36m正在登陆 clickouse「${CK}」:\033[0m"
+        ck_pod_login_ck && exit 0
+      else 
+        echo -e "\033[31m【Error】获取到多个 ${DATABASE} 相关名称的 clickouse pod, 请选择其中一个登录 ！！！\033[0m"
+        echo && usage &&  exit 0
+      fi
+    else 
+      echo -e "\033[31m【Error】没有获取到 ${DATABASE} 相关名称的 clickouse pod ！！！\033[0m"
+      echo && usage &&  exit 0
+    fi
+  fi 
+## 备份mysql
+elif [ x"${DATABASE_Management_System}" == x"backup" ]; then
+  if [ x"${MNTNCT_POD_NAME}" == "" ]; then
+    echo -e "\033[31m【Error】没有获取到 mntnct 相关名称的 pod ！！！\033[0m "
+    exit 0
+  fi 
+  if [ x"${DATABASE}" == x"" ] || [ x"${DATABASE}" == x"mysql" ]; then
+    if [ x"${EXTERNAL_MYSQL_HOST}" != x"" -a x"${EXTERNAL_MYSQL_PASSWORD}" != x"" ]; then
+      mnt_pod_backup_external_mysql && exit 0
+    fi
+    mnt_pod_backup_mysql && exit 0
+  else
+    echo -e "\033[31m【Error】备份命令输入错误 ！！！\033[0m"
+    echo && usage &&  exit 0
+  fi
+else
+  usage && exit 0
+fi
