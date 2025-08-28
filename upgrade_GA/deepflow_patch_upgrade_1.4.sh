@@ -57,10 +57,10 @@ usage() {
     echo -e "\033[1;36m█             \033[1;37mDeepFlow 升级脚本帮助信息             \033[1;36m█\033[0m"
     echo -e "\033[1;36m█▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄█\033[0m"
     
-    echo -e "\n\033[1;33m🛠️ 基本用法:\033[0m"
+    echo -e "\n\033[1;33m 基本用法:\033[0m"
     echo -e "  \033[1;32m./${script_name} \033[1;35m[选项]\033[0m"
     
-    echo -e "\n\033[1;33m📌 可用选项:\033[0m"
+    echo -e "\n\033[1;33m 可用选项:\033[0m"
     echo -e "  \033[1;35m-v, --version\033[0m  显示脚本版本信息"
     echo -e "  \033[1;35m-h, --help\033[0m     显示脚本帮助信息"
     echo -e "  \033[1;35m-p, --push\033[0m     仅导入并推送镜像到仓库"
@@ -68,11 +68,11 @@ usage() {
     echo -e "  \033[1;35m-c, --check\033[0m    检查升级后的版本是否一致"
     echo -e "  \033[1;35m-r, --rollback\033[0m 回滚到升级前的状态"
     
-    echo -e "\n\033[1;33m🔧 更新前准备工作:\033[0m"
-    echo -e "  • 修改脚本头部变量 \033[1;36mupgrade_version=\"DeepFlow-V6.4.9-xx\"\033[0m 为实际版本号"
-    echo -e "  • 确保脚本和 \033[1;36mpatch_image_tag_list.txt 以及镜像文件包\033[0m 在同一目录"
+    echo -e "\n\033[1;33m 更新前准备工作:\033[0m"
+    echo -e "  修改脚本头部变量 \033[1;36mupgrade_version=\"DeepFlow-V6.4.9-xx\"\033[0m 为实际版本号"
+    echo -e "  确保脚本和 \033[1;36mpatch_image_tag_list.txt 以及镜像文件包\033[0m 在同一目录"
     
-    echo -e "\n\033[1;33m⚙️  可配置变量 (修改脚本头部):\033[0m"
+    echo -e "\n\033[1;33m 可配置变量 (修改脚本头部):\033[0m"
     echo -e "  \033[1;36mcontainer_cmd\033[0m    容器命令 (默认: ${container_cmd})"
     echo -e "  \033[1;36mimage_dir\033[0m        镜像目录 (默认: ${image_dir})"
     echo -e "  \033[1;36msource_registry\033[0m  源仓库地址 (默认: ${source_registry})"
@@ -81,7 +81,7 @@ usage() {
     echo -e "  \033[1;36mvalues_yaml\033[0m      Values文件路径 (默认: ${values_yaml})"
     echo -e "  \033[1;36mvalues_custom\033[0m    自定义Values路径 (默认: ${values_custom})"
     
-    echo -e "\n\033[1;32m💡 提示: 执行前请仔细阅读上述说明并确认配置正确！\033[0m"
+    echo -e "\n\033[1;32m 提示: 执行前请仔细阅读上述说明并确认配置正确！\033[0m"
 }
 
 # 导入所有 .tar 镜像文件

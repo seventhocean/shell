@@ -141,7 +141,7 @@ pull_from_file() {
         
 
         echo -e "${GREEN}正在拉取镜像: $full_image_name${NC}"
-        if ! $container_cmd pull "$full_image_name"; then
+        if ! $container_cmd pull  "$full_image_name"; then
             echo -e "${RED}错误: 拉取镜像失败: $full_image_name${NC}"
             exit 1
             #sleep 2  # 添加2秒停顿
