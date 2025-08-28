@@ -12,8 +12,8 @@ BOLD='\033[1m'
 NC='\033[0m' # 恢复默认颜色
 
 # 使用的容器命令，支持 docker 或 nerdctl -nk8s.io
-container_cmd="docker"
-#container_cmd="nerdctl"
+#container_cmd="docker"
+container_cmd="nerdctl"
 
 # 定义镜像仓库地址
 repo="hub.deepflow.yunshan.net/dev/"
