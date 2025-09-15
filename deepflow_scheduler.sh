@@ -3,8 +3,11 @@ NAMESPACE="deepflow"
 
 # 定义副本数
 declare -A DEPLOYMENTS=(
-    ["master-deepflow-server"]="1"
-    ["df-web-core-deployment"]="1"
+    ["acl-controller-deployment"]="1" #控制平面入口点，提供gRPC和HTTP接口
+    ["df-web-core-deployment"]="1" #DeepFlow Web界面
+    ["master-deepflow-server"]="1" #DeepFlow Server的主控制器
+    ["querier-js-deployment"]="1" #提供查询API接口，数据查询的主要入口点
+    ["grafana-deployment"]="1" #Grafana Web界面
 )
 LOG_FILE="/var/log/deepflow_scheduler.log"
 
