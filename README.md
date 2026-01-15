@@ -1,1 +1,1 @@
-一些工作上用的小脚本
+For the convenience of operations, some scripts used at work
